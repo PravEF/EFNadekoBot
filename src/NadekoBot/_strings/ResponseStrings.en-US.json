@@ -176,6 +176,8 @@
   "administration_self_assign_rem": "{0} has been removed from the list of self-assignable roles.",
   "administration_self_assign_remove": "You no longer have {0} role.",
   "administration_self_assign_success": "You now have {0} role.",
+  "administration_esar_err": "Failed to remove excess roles for user {0}.",
+  "administration_esar_list": "Successfully cleaned all roles other than the {0} role for {1} users",
   "administration_setrole": "Successfully added role {0} to user {1}",
   "administration_setrole_err": "Failed to add role. I have insufficient permissions.",
   "administration_set_avatar": "New avatar set!",

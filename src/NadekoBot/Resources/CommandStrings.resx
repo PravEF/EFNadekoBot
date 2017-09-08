@@ -387,6 +387,15 @@
   <data name="rsar_usage" xml:space="preserve">
     <value>`{0}rsar`</value>
   </data>
+  <data name="esar_cmd" xml:space="preserve">
+    <value>esar</value>
+  </data>
+  <data name="esar_desc" xml:space="preserve">
+    <value>Retroactively makes a role exclusive, by removing all other self-assignable roles from users with this role.</value>
+  </data>
+  <data name="esar_usage" xml:space="preserve">
+    <value>`{0}esar Gamer`</value>
+  </data>
   <data name="lsar_cmd" xml:space="preserve">
     <value>lsar</value>
   </data>

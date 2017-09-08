@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Common.Collections;
+using NadekoBot.Common;
 
 namespace NadekoBot.Modules.Administration
 {
@@ -118,7 +119,7 @@ namespace NadekoBot.Modules.Administration
                 using (var uow = _db.UnitOfWork)
                 {
                     var roleModels = uow.SelfAssignedRoles.GetFromGuild(Context.Guild.Id).ToList();
-                    
+
                     foreach (var roleModel in roleModels)
                     {
                         var role = Context.Guild.Roles.FirstOrDefault(r => r.Id == roleModel.RoleId);
@@ -147,6 +148,47 @@ namespace NadekoBot.Modules.Administration
                         .WithDescription(string.Join("\n", roles.Skip(curPage * 10).Take(10)))
                         .WithOkColor();
                 }, roles.Count / 10);
+            }
+
+            [NadekoCommand, Usage, Description, Aliases]
+            [RequireContext(ContextType.Guild)]
+            [RequireUserPermission(GuildPermission.ManageRoles)]
+            public async Task Esar([Remainder] IRole role)
+            {
+                var guser = (IGuildUser)Context.User;
+                var rng = new NadekoRandom();
+                var usrs = (await Context.Guild.GetUsersAsync()).ToArray();
+                var roleUsers = usrs.Where(u => u.RoleIds.Contains(role.Id))
+                                    .ToList();
+                List<IGuildUser> updatedUsers = new List<IGuildUser>();
+                using (var uow = _db.UnitOfWork)
+                {
+                    var selfAssignedRoleIds = uow.SelfAssignedRoles.GetFromGuild(Context.Guild.Id).Select(x => x.RoleId).ToArray();
+                    foreach (var user in roleUsers)
+                    {
+                        var userRoles = user.GetRoles().Where(r => selfAssignedRoleIds.Contains(r.Id)).Except(new[] { role });
+                        if (userRoles.Any())
+                        {
+                            try
+                            {
+                                await user.RemoveRolesAsync(userRoles).ConfigureAwait(false);
+                                updatedUsers.Add(user);
+                            }
+                            catch (Exception)
+                            {
+                                await ReplyErrorLocalized("esar_err", Format.Bold(user.ToString())).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+
+                var updateroleusers = string.Join(", ", updatedUsers
+                                              .OrderBy(x => rng.Next())
+                                              .Take(50));
+                var embed = new EmbedBuilder().WithOkColor()
+                                              .WithTitle("ℹ️ " + Format.Bold(GetText("esar_list", Format.Bold(role.Name), Format.Bold(updatedUsers.Count().ToString()))))
+                    .WithDescription($"```css\n[{role.Name}]\n{updateroleusers}```");
+                await Context.Channel.EmbedAsync(embed).ConfigureAwait(false);
             }
 
             [NadekoCommand, Usage, Description, Aliases]
@@ -196,7 +238,7 @@ namespace NadekoBot.Modules.Administration
                 if (conf.ExclusiveSelfAssignedRoles)
                 {
                     var sameRoles = guildUser.RoleIds.Where(r => roleIds.Contains(r));
-                    
+
                     foreach (var roleId in sameRoles)
                     {
                         var sameRole = Context.Guild.GetRole(roleId);
