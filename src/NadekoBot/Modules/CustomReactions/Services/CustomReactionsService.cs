@@ -43,7 +43,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
             _cmd = cmd;
             _bc = bc;
             _strings = strings;
-            
+
             var items = uow.CustomReactions.GetAll();
             GuildReactions = new ConcurrentDictionary<ulong, CustomReaction[]>(items.Where(g => g.GuildId != null && g.GuildId != 0).GroupBy(k => k.GuildId.Value).ToDictionary(g => g.Key, g => g.ToArray()));
             GlobalReactions = items.Where(g => g.GuildId == null || g.GuildId == 0).ToArray();
@@ -51,7 +51,7 @@ namespace NadekoBot.Modules.CustomReactions.Services
 
         public void ClearStats() => ReactionStats.Clear();
 
-        public CustomReaction TryGetCustomReaction(IUserMessage umsg)
+        public CustomReaction[] TryGetCustomReaction(IUserMessage umsg)
         {
             var channel = umsg.Channel as SocketTextChannel;
             if (channel == null)
@@ -69,22 +69,16 @@ namespace NadekoBot.Modules.CustomReactions.Services
 
                         var hasTarget = cr.Response.ToLowerInvariant().Contains("%target%");
                         var trigger = cr.TriggerWithContext(umsg, _client).Trim().ToLowerInvariant();
-                        return ((cr.ContainsAnywhere && 
+                        return ((cr.ContainsAnywhere &&
                             (content.GetWordPosition(trigger) != WordPosition.None))
-                            || (hasTarget && content.StartsWith(trigger + " ")) 
-                            || (_bc.BotConfig.CustomReactionsStartWith && content.StartsWith(trigger + " "))  
+                            || (hasTarget && content.StartsWith(trigger + " "))
+                            || (_bc.BotConfig.CustomReactionsStartWith && content.StartsWith(trigger + " "))
                             || content == trigger);
                     }).ToArray();
 
                     if (rs.Length != 0)
                     {
-                        var reaction = rs[new NadekoRandom().Next(0, rs.Length)];
-                        if (reaction != null)
-                        {
-                            if (reaction.Response == "-")
-                                return null;
-                            return reaction;
-                        }
+                        return rs;
                     }
                 }
 
@@ -98,47 +92,49 @@ namespace NadekoBot.Modules.CustomReactions.Services
             }).ToArray();
             if (grs.Length == 0)
                 return null;
-            var greaction = grs[new NadekoRandom().Next(0, grs.Length)];
 
-            return greaction;
+            return grs;
         }
 
         public async Task<bool> TryExecuteEarly(DiscordSocketClient client, IGuild guild, IUserMessage msg)
         {
             // maybe this message is a custom reaction
-            var cr = await Task.Run(() => TryGetCustomReaction(msg)).ConfigureAwait(false);
-            if (cr != null)
+            var crs = await Task.Run(() => TryGetCustomReaction(msg)).ConfigureAwait(false);
+            if (crs != null)
             {
-                try
+                foreach (var cr in crs)
                 {
-                    if (guild is SocketGuild sg)
+                    try
                     {
-                        var pc = _perms.GetCache(guild.Id);
-                        if (!pc.Permissions.CheckPermissions(msg, cr.Trigger, "ActualCustomReactions",
-                            out int index))
+                        if (guild is SocketGuild sg)
                         {
-                            if (pc.Verbose)
+                            var pc = _perms.GetCache(guild.Id);
+                            if (!pc.Permissions.CheckPermissions(msg, cr.Trigger, "ActualCustomReactions",
+                                out int index))
                             {
-                                var returnMsg = _strings.GetText("trigger", guild.Id, "Permissions".ToLowerInvariant(), index + 1, Format.Bold(pc.Permissions[index].GetCommand(_cmd.GetPrefix(guild), (SocketGuild)guild)));
-                                try { await msg.Channel.SendErrorAsync(returnMsg).ConfigureAwait(false); } catch { }
-                                _log.Info(returnMsg);
+                                if (pc.Verbose)
+                                {
+                                    var returnMsg = _strings.GetText("trigger", guild.Id, "Permissions".ToLowerInvariant(), index + 1, Format.Bold(pc.Permissions[index].GetCommand(_cmd.GetPrefix(guild), (SocketGuild)guild)));
+                                    try { await msg.Channel.SendErrorAsync(returnMsg).ConfigureAwait(false); } catch { }
+                                    _log.Info(returnMsg);
+                                }
+                                return true;
                             }
-                            return true;
+                        }
+                        await cr.Send(msg, _client, this).ConfigureAwait(false);
+
+                        if (cr.AutoDeleteTrigger)
+                        {
+                            try { await msg.DeleteAsync().ConfigureAwait(false); } catch { }
                         }
                     }
-                    await cr.Send(msg, _client, this).ConfigureAwait(false);
-
-                    if (cr.AutoDeleteTrigger)
+                    catch (Exception ex)
                     {
-                        try { await msg.DeleteAsync().ConfigureAwait(false); } catch { }
+                        _log.Warn("Sending CREmbed failed");
+                        _log.Warn(ex);
                     }
-                    return true;
                 }
-                catch (Exception ex)
-                {
-                    _log.Warn("Sending CREmbed failed");
-                    _log.Warn(ex);
-                }
+                return true;
             }
             return false;
         }
