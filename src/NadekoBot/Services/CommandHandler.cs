@@ -40,7 +40,7 @@ namespace NadekoBot.Services
         private ConcurrentDictionary<ulong, string> _prefixes { get; } = new ConcurrentDictionary<ulong, string>();
 
         private ImmutableArray<AsyncLazy<IDMChannel>> ownerChannels { get; set; } = new ImmutableArray<AsyncLazy<IDMChannel>>();
-        
+
         public event Func<IUserMessage, CommandInfo, Task> CommandExecuted = delegate { return Task.CompletedTask; };
         public event Func<CommandInfo, ITextChannel, string, Task> CommandErrored = delegate { return Task.CompletedTask; };
         public event Func<IUserMessage, Task> OnMessageNoTrigger = delegate { return Task.CompletedTask; };
@@ -236,11 +236,11 @@ namespace NadekoBot.Services
                 }
             }
 
-            var exec2 = Environment.TickCount - execTime;            
+            var exec2 = Environment.TickCount - execTime;
 
             foreach (var svc in _services)
             {
-                if (svc is IEarlyBlockingExecutor exec && 
+                if (svc is IEarlyBlockingExecutor exec &&
                     await exec.TryExecuteEarly(_client, guild, usrMsg).ConfigureAwait(false))
                 {
                     _log.Info("User [{0}] executed [{1}] in [{2}]", usrMsg.Author, usrMsg.Content, svc.GetType().Name);
@@ -254,7 +254,7 @@ namespace NadekoBot.Services
             foreach (var svc in _services)
             {
                 string newContent;
-                if (svc is IInputTransformer exec && 
+                if (svc is IInputTransformer exec &&
                     (newContent = await exec.TransformInput(guild, usrMsg.Channel, usrMsg.Author, messageContent).ConfigureAwait(false)) != messageContent.ToLowerInvariant())
                 {
                     messageContent = newContent;
@@ -262,6 +262,7 @@ namespace NadekoBot.Services
                 }
             }
             var prefix = GetPrefix(guild?.Id);
+            var customCommandPrefix = "!";
             var isPrefixCommand = messageContent.StartsWith(".prefix");
             // execute the command and measure the time it took
             if (messageContent.StartsWith(prefix) || isPrefixCommand)
@@ -280,6 +281,18 @@ namespace NadekoBot.Services
                     LogErroredExecution(result.Error, usrMsg, channel as ITextChannel, exec2, exec3, execTime);
                     if (guild != null)
                         await CommandErrored(result.Info, channel as ITextChannel, result.Error);
+                }
+            }
+            else if(messageContent.StartsWith(customCommandPrefix))
+            {
+                foreach (var svc in _services)
+                {
+                    if (svc is IAliasableCustomCommandExecutor exec &&
+                        await exec.TryExecuteEarly(_client, guild, usrMsg, messageContent).ConfigureAwait(false))
+                    {
+                        _log.Info("User [{0}] executed [{1}] aliased as [{2}] in [{3}]", usrMsg.Author, usrMsg.Content, messageContent, svc.GetType().Name);
+                        return;
+                    }
                 }
             }
             else

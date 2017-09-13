@@ -18,7 +18,7 @@ using NadekoBot.Services.Impl;
 
 namespace NadekoBot.Modules.CustomReactions.Services
 {
-    public class CustomReactionsService : IEarlyBlockingExecutor, INService
+    public class CustomReactionsService : IEarlyBlockingExecutor, INService, IAliasableCustomCommandExecutor
     {
         public CustomReaction[] GlobalReactions = new CustomReaction[] { };
         public ConcurrentDictionary<ulong, CustomReaction[]> GuildReactions { get; } = new ConcurrentDictionary<ulong, CustomReaction[]>();
@@ -51,13 +51,16 @@ namespace NadekoBot.Modules.CustomReactions.Services
 
         public void ClearStats() => ReactionStats.Clear();
 
-        public CustomReaction[] TryGetCustomReaction(IUserMessage umsg)
+        public CustomReaction[] TryGetCustomReaction(IUserMessage umsg, String newContent)
         {
             var channel = umsg.Channel as SocketTextChannel;
             if (channel == null)
                 return null;
 
             var content = umsg.Content.Trim().ToLowerInvariant();
+            if (!content.Equals(newContent)){
+                content = newContent;
+            }
 
             if (GuildReactions.TryGetValue(channel.Guild.Id, out CustomReaction[] reactions))
                 if (reactions != null && reactions.Any())
@@ -98,8 +101,14 @@ namespace NadekoBot.Modules.CustomReactions.Services
 
         public async Task<bool> TryExecuteEarly(DiscordSocketClient client, IGuild guild, IUserMessage msg)
         {
+            return await TryExecuteEarly(client, guild, msg, msg.Content);
+        }
+
+        public async Task<bool> TryExecuteEarly(DiscordSocketClient client, IGuild guild, IUserMessage msg, string newContent)
+        {
             // maybe this message is a custom reaction
-            var crs = await Task.Run(() => TryGetCustomReaction(msg)).ConfigureAwait(false);
+            var crs = await Task.Run(() => TryGetCustomReaction(msg, newContent)).ConfigureAwait(false);
+            string messageContent = msg.Content;
             if (crs != null)
             {
                 foreach (var cr in crs)
