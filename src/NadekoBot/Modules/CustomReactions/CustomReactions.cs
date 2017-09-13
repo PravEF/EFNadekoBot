@@ -9,6 +9,8 @@ using Discord.WebSocket;
 using System;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Modules.CustomReactions.Services;
+using System.Net;
+using System.IO;
 
 namespace NadekoBot.Modules.CustomReactions
 {
@@ -79,6 +81,22 @@ namespace NadekoBot.Modules.CustomReactions
                 .AddField(efb => efb.WithName(GetText("trigger")).WithValue(key))
                 .AddField(efb => efb.WithName(GetText("response")).WithValue(message.Length > 1024 ? GetText("redacted_too_long") : message))
                 ).ConfigureAwait(false);
+        }
+
+        [NadekoCommand, Usage, Description, Aliases]
+        public async Task AddCustReactFromFile(string key, [Remainder] string url)
+        {
+            var channel = Context.Channel as ITextChannel;
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(key))
+                return;
+            key = key.ToLowerInvariant();
+            var task = MakeAsyncRequest(url, "text/plain");
+            string message = task.Result;
+
+            if (string.IsNullOrWhiteSpace(message))
+                return;
+
+            await AddCustReact(key, message);
         }
 
         [NadekoCommand, Usage, Description, Aliases]
@@ -323,7 +341,7 @@ namespace NadekoBot.Modules.CustomReactions
         [NadekoCommand, Usage, Description, Aliases]
         public async Task CrDm(int id)
         {
-            if ((Context.Guild == null && !_creds.IsOwner(Context.User)) || 
+            if ((Context.Guild == null && !_creds.IsOwner(Context.User)) ||
                 (Context.Guild != null && !((IGuildUser)Context.User).GuildPermissions.Administrator))
             {
                 await ReplyErrorLocalized("insuff_perms").ConfigureAwait(false);
@@ -459,6 +477,32 @@ namespace NadekoBot.Modules.CustomReactions
                                     .Aggregate(new EmbedBuilder().WithOkColor().WithTitle(GetText("stats")),
                                             (agg, cur) => agg.AddField(efb => efb.WithName(cur.Key).WithValue(cur.Value.ToString()).WithIsInline(true))), lastPage)
                 .ConfigureAwait(false);
+        }
+
+        public static Task<string> MakeAsyncRequest(string url, string contentType)
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.ContentType = contentType;
+            request.Method = "GET";
+            request.Proxy = null;
+
+            Task<WebResponse> task = Task.Factory.FromAsync(
+                request.BeginGetResponse,
+                asyncResult => request.EndGetResponse(asyncResult),
+                (object)null);
+
+            return task.ContinueWith(t => ReadStreamFromResponse(t.Result));
+        }
+
+        private static string ReadStreamFromResponse(WebResponse response)
+        {
+            using (Stream responseStream = response.GetResponseStream())
+            using (StreamReader sr = new StreamReader(responseStream))
+            {
+                //Need to return this response
+                string strContent = sr.ReadToEnd();
+                return strContent;
+            }
         }
     }
 }

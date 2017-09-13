@@ -441,6 +441,15 @@
   <data name="addcustreact_usage" xml:space="preserve">
     <value>`{0}acr "hello" Hi there %user%`</value>
   </data>
+  <data name="addcustreactfromfile_cmd" xml:space="preserve">
+    <value>addcustreactfromfile acrfile</value>
+  </data>
+  <data name="addcustreactfromfile_desc" xml:space="preserve">
+    <value>Add a custom reaction with a trigger and a url of a file containing the response. The url must respond with plaintext when a GET request is sent to it. Pastebin preferred. Running this command in server requires the Administration permission. Running this command in DM is Bot Owner only and adds a new global custom reaction. Guide here: &lt;http://nadekobot.readthedocs.io/en/latest/Custom%20Reactions/&gt;</value>
+  </data>
+  <data name="addcustreactfromfile_usage" xml:space="preserve">
+    <value>`{0}acrfile "!cmd_with_long_output" https://pastebin.com/raw/your_file`</value>
+  </data>
   <data name="listcustreact_cmd" xml:space="preserve">
     <value>listcustreact lcr</value>
   </data>
