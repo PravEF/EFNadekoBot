@@ -46,9 +46,7 @@ namespace NadekoBot.Modules.Utility.Services
                     foreach (var k in keys)
                     {
                         string newInput;
-                        if (input.StartsWith(k + " "))
-                            newInput = maps[k] + input.Substring(k.Length, input.Length - k.Length);
-                        else if (input == k)
+                        if (input == k)
                             newInput = maps[k];
                         else
                             continue;
