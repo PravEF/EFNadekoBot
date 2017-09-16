@@ -15,11 +15,14 @@ With the permissions system it possible to restrict who can skip the current son
 
 First Time Setup
 ------------------
-To change permissions you **must** meet the following requirement:
+To change permissions you **must** meet the following requirements:
 
-**Have the role specified by `.permrole` (By default, this is Nadeko)**
+**Be the owner of the server**
+
+**If you are NOT the server owner, get the role specified by `.permrole` (By default, this is Nadeko)**
 
 If you have an existing role called `Nadeko` but can't assign it to yourself, create a new role called `Nadeko` and assign that to yourself.
+[image](https://i.imgur.com/5QKZqqy.gif)
 
 If you would like to set a different role, such as `Admins`, to be the role required to edit permissions, do `.permrole Admins` (you must have the current permission role to be able to do this).
 
