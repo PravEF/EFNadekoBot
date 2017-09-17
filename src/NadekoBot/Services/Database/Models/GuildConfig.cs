@@ -76,6 +76,7 @@ namespace NadekoBot.Services.Database.Models
         public HashSet<CommandAlias> CommandAliases { get; set; } = new HashSet<CommandAlias>();
         public List<WarningPunishment> WarnPunishments { get; set; } = new List<WarningPunishment>();
         public bool WarningsInitialized { get; set; }
+        public string WarnExpiry { get; set; } = TimeSpan.Parse("14").ToString();
         public HashSet<SlowmodeIgnoredUser> SlowmodeIgnoredUsers { get; set; }
         public HashSet<SlowmodeIgnoredRole> SlowmodeIgnoredRoles { get; set; }
         public HashSet<NsfwBlacklitedTag> NsfwBlacklistedTags { get; set; } = new HashSet<NsfwBlacklitedTag>();

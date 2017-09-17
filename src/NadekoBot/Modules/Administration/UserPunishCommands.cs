@@ -6,6 +6,7 @@ using NadekoBot.Extensions;
 using NadekoBot.Services;
 using NadekoBot.Services.Database.Models;
 using System.Linq;
+using System;
 using System.Threading.Tasks;
 using NadekoBot.Common.Attributes;
 using NadekoBot.Modules.Administration.Services;
@@ -82,9 +83,15 @@ namespace NadekoBot.Modules.Administration
                 if (page < 0)
                     return;
                 Warning[] warnings;
+                TimeSpan expiry;
+                bool expiry_found = false;
                 using (var uow = _db.UnitOfWork)
                 {
                     warnings = uow.Warnings.For(Context.Guild.Id, userId);
+                    if (TimeSpan.TryParse(uow.GuildConfigs.For(Context.Guild.Id).WarnExpiry, out TimeSpan output)){
+                        expiry_found = true;
+                        expiry = output;
+                    }
                 }
 
                 warnings = warnings.Skip(page * 9)
@@ -92,7 +99,9 @@ namespace NadekoBot.Modules.Administration
                     .ToArray();
 
                 var embed = new EmbedBuilder().WithOkColor()
-                    .WithTitle(GetText("warnlog_for", (Context.Guild as SocketGuild)?.GetUser(userId)?.ToString() ?? userId.ToString()))
+                    .WithTitle(GetText("warnlog_for",
+                        (Context.Guild as SocketGuild)?.GetUser(userId)?.ToString() ?? userId.ToString() ,
+                        DateTime.UtcNow.ToString("dd.MM.yyy"), DateTime.UtcNow.ToString("HH:mm")))
                     .WithFooter(efb => efb.WithText(GetText("page", page  + 1)));
 
                 if (!warnings.Any())
@@ -105,8 +114,15 @@ namespace NadekoBot.Modules.Administration
                     {
                         var name = GetText("warned_on_by", w.DateAdded.Value.ToString("dd.MM.yyy"), w.DateAdded.Value.ToString("HH:mm"), w.Moderator);
                         if (w.Forgiven)
-                            name = Format.Strikethrough(name) + " " + GetText("warn_cleared_by", w.ForgivenBy);
-
+                            name = Format.Strikethrough(name) + " " + GetText("warn_cleared_by", w.ForgivenBy) + " [Inactive]";
+                        else
+                            name = expiry_found
+                                ? (((DateTime.UtcNow - w.DateAdded) < expiry)
+                                   ? name + " [Active]"
+                                   : name + " [Inactive]")
+                                : (((DateTime.UtcNow - w.DateAdded).Value.TotalDays < 14)
+                                   ? name + " [Active]"
+                                   : name + " [Inactive]");
                         embed.AddField(x => x
                             .WithName(name)
                             .WithValue(w.Reason));
@@ -194,9 +210,46 @@ namespace NadekoBot.Modules.Administration
                     uow.Complete();
                 }
 
-                await ReplyConfirmLocalized("warn_punish_set", 
-                    Format.Bold(punish.ToString()), 
+                await ReplyConfirmLocalized("warn_punish_set",
+                    Format.Bold(punish.ToString()),
                     Format.Bold(number.ToString())).ConfigureAwait(false);
+            }
+
+            [NadekoCommand, Usage, Description, Aliases]
+            [RequireContext(ContextType.Guild)]
+            [RequireUserPermission(GuildPermission.BanMembers)]
+            public async Task WarnExpiry([Remainder] String newExpiry = null)
+            {
+                using (var uow = _db.UnitOfWork)
+                {
+                    var gc = uow.GuildConfigs.For(Context.Guild.Id, set => set);
+                    if (string.IsNullOrWhiteSpace(newExpiry))
+                    {
+                        if(string.IsNullOrWhiteSpace(gc.WarnExpiry))
+                        {
+                            await ReplyConfirmLocalized("warn_expiry_not_set").ConfigureAwait(false);
+                            return;
+                        }
+                        await ReplyConfirmLocalized("warn_expiry_get", gc.WarnExpiry).ConfigureAwait(false);
+                        return;
+                    }
+                    try{
+                        gc.WarnExpiry = TimeSpan.Parse(newExpiry).ToString();
+                        uow.Complete();
+                        await ReplyConfirmLocalized("warn_expiry_set", gc.WarnExpiry).ConfigureAwait(false);
+                    }
+                    catch (FormatException)
+                    {
+                        await ReplyConfirmLocalized("warn_expiry_format",
+                                                    Format.Bold(newExpiry)).ConfigureAwait(false);
+                    }
+                    catch (OverflowException)
+                    {
+                        await ReplyConfirmLocalized("warn_expiry_overflow",
+                                                    Format.Bold(newExpiry)).ConfigureAwait(false);
+                    }
+
+                }
             }
 
             [NadekoCommand, Usage, Description, Aliases]

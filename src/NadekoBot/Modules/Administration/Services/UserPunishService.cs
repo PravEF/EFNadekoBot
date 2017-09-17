@@ -6,6 +6,7 @@ using Discord;
 using Microsoft.EntityFrameworkCore;
 using NadekoBot.Services;
 using NadekoBot.Services.Database.Models;
+using NadekoBot.Modules;
 
 namespace NadekoBot.Modules.Administration.Services
 {
@@ -42,11 +43,22 @@ namespace NadekoBot.Modules.Administration.Services
             {
                 ps = uow.GuildConfigs.For(guildId, set => set.Include(x => x.WarnPunishments))
                     .WarnPunishments;
-
-                warnings += uow.Warnings
-                    .For(guildId, userId)
-                    .Where(w => !w.Forgiven && w.UserId == userId)
-                    .Count();
+                if(TimeSpan.TryParse(uow.GuildConfigs.For(guildId).WarnExpiry, out TimeSpan expiry))
+                {
+                    warnings += uow.Warnings
+                                .For(guildId, userId)
+                                .Where(w => !w.Forgiven && w.UserId == userId
+                                    && (DateTime.UtcNow - w.DateAdded) < expiry)
+                                .Count();
+                }
+                else
+                {
+                    warnings += uow.Warnings
+                                .For(guildId, userId)
+                                .Where(w => !w.Forgiven && w.UserId == userId
+                                    && (DateTime.UtcNow - w.DateAdded).Value.TotalDays < 14)
+                                .Count();
+                }
 
                 uow.Warnings.Add(warn);
 

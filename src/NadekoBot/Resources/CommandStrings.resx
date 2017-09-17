@@ -3267,6 +3267,15 @@
   <data name="alias_usage" xml:space="preserve">
     <value>`{0}alias allin $bf 100 h` or `{0}alias "linux thingy" &gt;loonix Spyware Windows`</value>
   </data>
+  <data name="warnexpiry_cmd" xml:space="preserve">
+    <value>warnexpiry</value>
+  </data>
+  <data name="warnexpiry_desc" xml:space="preserve">
+    <value>Set the default warning expire period. Expects a parseable timespan string, default is 14 days.</value>
+  </data>
+  <data name="warnexpiry_usage" xml:space="preserve">
+    <value>`{0}warnexpiry D:HH:MM:SS`</value>
+  </data>
   <data name="warnlog_cmd" xml:space="preserve">
     <value>warnlog</value>
   </data>
