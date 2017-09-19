@@ -55,8 +55,8 @@ namespace NadekoBot.Modules.Utility.Services
             GuildId: {0}
             Trigger: {1}
             Mapping: {2}", guild.Id, input, newInput);
-
-                        try { await channel.SendConfirmAsync($"{input} => {newInput}").ConfigureAwait(false); } catch { }
+                        // We don't want to print this, as it causes weird behavior with aliases custom commands
+                        //try { await channel.SendConfirmAsync($"{input} => {newInput}").ConfigureAwait(false); } catch { }
                         return newInput;
                     }
                 }
