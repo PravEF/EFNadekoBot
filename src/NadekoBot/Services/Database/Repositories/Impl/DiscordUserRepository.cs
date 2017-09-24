@@ -37,5 +37,27 @@ namespace NadekoBot.Services.Database.Repositories.Impl
 
             return toReturn;
         }
+
+        public int GetUserGlobalRanking(ulong id)
+        {
+            if (!_set.Where(y => y.UserId == id).Any())
+            {
+                return _set.Count() + 1;
+            }
+            return _set.Count(x => x.TotalXp >= 
+                _set.Where(y => y.UserId == id)
+                    .DefaultIfEmpty()
+                    .Sum(y => y.TotalXp));
+        }
+
+        public DiscordUser[] GetUsersXpLeaderboardFor(int page)
+        {
+            return _set
+                .OrderByDescending(x => x.TotalXp)
+                .Skip(page * 9)
+                .Take(9)
+                .AsEnumerable()
+                .ToArray();
+        }
     }
 }

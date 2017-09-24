@@ -90,18 +90,13 @@ namespace NadekoBot.Services.Impl
                 ulong.TryParse(data[nameof(ClientId)], out ulong clId);
                 ClientId = clId;
 
-                //var scId = data[nameof(SoundCloudClientId)];
-                //SoundCloudClientId = scId;
-                //SoundCloudClientId = string.IsNullOrWhiteSpace(scId)
-                //    ? 
-                //    : scId;
                 CarbonKey = data[nameof(CarbonKey)];
                 var dbSection = data.GetSection("db");
                 Db = new DBConfig(string.IsNullOrWhiteSpace(dbSection["Type"]) 
                                 ? "sqlite" 
                                 : dbSection["Type"], 
                             string.IsNullOrWhiteSpace(dbSection["ConnectionString"]) 
-                                ? "Filename=./data/NadekoBot.db"
+                                ? "Data Source=data/NadekoBot.db"
                                 : dbSection["ConnectionString"]);
             }
             catch (Exception ex)
@@ -125,7 +120,7 @@ namespace NadekoBot.Services.Impl
             public string SoundCloudClientId { get; set; } = "";
             public string CleverbotApiKey { get; } = "";
             public string CarbonKey { get; set; } = "";
-            public DBConfig Db { get; set; } = new DBConfig("sqlite", "Filename=./data/NadekoBot.db");
+            public DBConfig Db { get; set; } = new DBConfig("sqlite", "Data Source=data/NadekoBot.db");
             public int TotalShards { get; set; } = 1;
             public string PatreonAccessToken { get; set; } = "";
             public string PatreonCampaignId { get; set; } = "334038";

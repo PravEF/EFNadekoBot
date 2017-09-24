@@ -12,9 +12,10 @@ using System;
 namespace NadekoBot.Migrations
 {
     [DbContext(typeof(NadekoContext))]
-    partial class NadekoSqliteContextModelSnapshot : ModelSnapshot
+    [Migration("20170921185313_feeds")]
+    partial class feeds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -725,8 +726,6 @@ namespace NadekoBot.Migrations
                     b.Property<bool>("VoicePlusTextEnabled");
 
                     b.Property<bool>("WarningsInitialized");
-
-                    b.Property<string>("WarnExpiry");
 
                     b.HasKey("Id");
 
@@ -1561,12 +1560,13 @@ namespace NadekoBot.Migrations
 
                     b.Property<ulong>("RoleId");
 
-                    b.Property<int>("XpSettingsId");
+                    b.Property<int?>("XpSettingsId");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("XpSettingsId", "Level")
-                        .IsUnique();
+                    b.HasAlternateKey("Level");
+
+                    b.HasIndex("XpSettingsId");
 
                     b.ToTable("XpRoleReward");
                 });
@@ -1967,10 +1967,9 @@ namespace NadekoBot.Migrations
 
             modelBuilder.Entity("NadekoBot.Services.Database.Models.XpRoleReward", b =>
                 {
-                    b.HasOne("NadekoBot.Services.Database.Models.XpSettings", "XpSettings")
+                    b.HasOne("NadekoBot.Services.Database.Models.XpSettings")
                         .WithMany("RoleRewards")
-                        .HasForeignKey("XpSettingsId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .HasForeignKey("XpSettingsId");
                 });
 
             modelBuilder.Entity("NadekoBot.Services.Database.Models.XpSettings", b =>

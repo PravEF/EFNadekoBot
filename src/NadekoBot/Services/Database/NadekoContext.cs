@@ -3,23 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using NadekoBot.Services.Database.Models;
 using NadekoBot.Extensions;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
+using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Data.Sqlite;
+using System.IO;
 
 namespace NadekoBot.Services.Database
 {
-
-    public class NadekoContextFactory : IDbContextFactory<NadekoContext>
-    {
-        /// <summary>
-        /// :\ Used for migrations
-        /// </summary>
-        /// <param name="options"></param>
-        /// <returns></returns>
-        public NadekoContext Create(DbContextFactoryOptions options)
+    public class NadekoContextFactory : IDesignTimeDbContextFactory<NadekoContext>
+    {        
+        public NadekoContext CreateDbContext(string[] args)
         {
-            var optionsBuilder = new DbContextOptionsBuilder();
-            optionsBuilder.UseSqlite("Filename=./data/NadekoBot.db");
+            var optionsBuilder = new DbContextOptionsBuilder<NadekoContext>();
+            var builder = new SqliteConnectionStringBuilder("Data Source=data/NadekoBot.db");
+            builder.DataSource = Path.Combine(AppContext.BaseDirectory, builder.DataSource);
+            optionsBuilder.UseSqlite(builder.ToString());
             var ctx = new NadekoContext(optionsBuilder.Options);
             ctx.Database.SetCommandTimeout(60);
             return ctx;
@@ -58,12 +56,7 @@ namespace NadekoBot.Services.Database
         public DbSet<ModulePrefix> ModulePrefixes { get; set; }
         public DbSet<RewardedUser> RewardedUsers { get; set; }
 
-        public NadekoContext() : base()
-        {
-
-        }
-
-        public NadekoContext(DbContextOptions options) : base(options)
+        public NadekoContext(DbContextOptions<NadekoContext> options) : base(options)
         {
         }
 
@@ -149,6 +142,9 @@ namespace NadekoBot.Services.Database
                 .HasOne(x => x.GuildConfig)
                 .WithOne(x => x.AntiRaidSetting);
 
+            modelBuilder.Entity<FeedSub>()
+                .HasAlternateKey(x => new { x.GuildConfigId, x.Url });
+
             //modelBuilder.Entity<ProtectionIgnoredChannel>()
             //    .HasAlternateKey(c => new { c.ChannelId, c.ProtectionType });
 
@@ -231,7 +227,7 @@ namespace NadekoBot.Services.Database
             musicPlaylistEntity
                 .HasMany(p => p.Songs)
                 .WithOne()
-                .OnDelete(Microsoft.EntityFrameworkCore.Metadata.DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             #endregion
@@ -281,7 +277,7 @@ namespace NadekoBot.Services.Database
 
             modelBuilder.Entity<DiscordUser>()
                 .Property(x => x.LastLevelUp)
-                .HasDefaultValue(DateTime.Now);
+                .HasDefaultValue(new DateTime(2017, 9, 21, 20, 53, 13, 305, DateTimeKind.Local));
 
             #endregion
 
@@ -302,7 +298,8 @@ namespace NadekoBot.Services.Database
 
             modelBuilder.Entity<UserXpStats>()
                 .Property(x => x.LastLevelUp)
-                .HasDefaultValue(DateTime.Now);
+                .HasDefaultValue(new DateTime(2017, 9, 21, 20, 53, 13, 307, DateTimeKind.Local));
+            
             #endregion
 
             #region XpSettings
@@ -311,9 +308,11 @@ namespace NadekoBot.Services.Database
                 .WithOne(x => x.XpSettings);
             #endregion
 
+            //todo major bug
             #region XpRoleReward
             modelBuilder.Entity<XpRoleReward>()
-                .HasAlternateKey(x => x.Level);
+                .HasIndex(x => new { x.XpSettingsId, x.Level })
+                .IsUnique();
             #endregion
 
             #region Club
@@ -329,7 +328,7 @@ namespace NadekoBot.Services.Database
             #region ClubManytoMany
 
             modelBuilder.Entity<ClubApplicants>()
-            .HasKey(t => new { t.ClubId, t.UserId });
+                .HasKey(t => new { t.ClubId, t.UserId });
 
             modelBuilder.Entity<ClubApplicants>()
                 .HasOne(pt => pt.User)
@@ -340,7 +339,7 @@ namespace NadekoBot.Services.Database
                 .WithMany(x => x.Applicants);
 
             modelBuilder.Entity<ClubBans>()
-            .HasKey(t => new { t.ClubId, t.UserId });
+                .HasKey(t => new { t.ClubId, t.UserId });
 
             modelBuilder.Entity<ClubBans>()
                 .HasOne(pt => pt.User)

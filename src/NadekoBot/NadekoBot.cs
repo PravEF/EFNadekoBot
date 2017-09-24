@@ -20,6 +20,8 @@ using NadekoBot.Common.ShardCom;
 using NadekoBot.Common.TypeReaders;
 using NadekoBot.Common.TypeReaders.Models;
 using NadekoBot.Services.Database;
+using StackExchange.Redis;
+using Newtonsoft.Json;
 
 namespace NadekoBot
 {
@@ -58,6 +60,17 @@ namespace NadekoBot
         {
             if (shardId < 0)
                 throw new ArgumentOutOfRangeException(nameof(shardId));
+
+            //var obj = JsonConvert.DeserializeObject<Dictionary<string, CommandData2>>(File.ReadAllText("./data/command_strings.json"))
+            //    .ToDictionary(x => x.Key, x => new CommandData2
+            //    {
+            //        Cmd = x.Value.Cmd,
+            //        Desc = x.Value.Desc,
+            //        Usage = x.Value.Usage.Select(y => y.Substring(1, y.Length - 2)).ToArray(),
+            //    });
+
+            //File.WriteAllText("./data/command_strings.json", JsonConvert.SerializeObject(obj, Formatting.Indented));
+            
 
             LogSetup.SetupLogger();
             _log = LogManager.GetCurrentClassLogger();
@@ -139,6 +152,7 @@ namespace NadekoBot
                     .AddManual<IEnumerable<GuildConfig>>(AllGuildConfigs) //todo wrap this
                     .AddManual<NadekoBot>(this)
                     .AddManual<IUnitOfWork>(uow)
+                    .AddManual<IDataCache>(new RedisCache(Client.CurrentUser.Id))
                     .LoadFrom(Assembly.GetEntryAssembly())
                     .Build();
 
@@ -153,7 +167,6 @@ namespace NadekoBot
                 CommandService.AddTypeReader<ModuleOrCrInfo>(new ModuleOrCrTypeReader(CommandService));
                 CommandService.AddTypeReader<IGuild>(new GuildTypeReader(Client));
                 CommandService.AddTypeReader<GuildDateTime>(new GuildDateTimeTypeReader());
-
             }
         }
 
@@ -239,13 +252,6 @@ namespace NadekoBot
 #if GLOBAL_NADEKO
             isPublicNadeko = true;
 #endif
-            //_log.Info(string.Join(", ", CommandService.Commands
-            //    .Distinct(x => x.Name + x.Module.Name)
-            //    .SelectMany(x => x.Aliases)
-            //    .GroupBy(x => x)
-            //    .Where(x => x.Count() > 1)
-            //    .Select(x => x.Key + $"({x.Count()})")));
-
             //unload modules which are not available on the public bot
 
             if(isPublicNadeko)
@@ -256,6 +262,7 @@ namespace NadekoBot
                     .ForEach(x => CommandService.RemoveModuleAsync(x));
 
             Ready.TrySetResult(true);
+            HandleStatusChanges();
             _log.Info($"Shard {Client.ShardId} ready.");
             //_log.Info(await stats.Print().ConfigureAwait(false));
         }
@@ -317,6 +324,52 @@ namespace NadekoBot
                     Environment.Exit(10);
                 }
             })).Start();
+        }
+
+        private void HandleStatusChanges()
+        {
+            var sub = Services.GetService<IDataCache>().Redis.GetSubscriber();
+            sub.Subscribe(Client.CurrentUser.Id + "_status.game_set", async (ch, game) =>
+            {
+                try
+                {
+                    var obj = new { Name = default(string) };
+                    obj = JsonConvert.DeserializeAnonymousType(game, obj);
+                    await Client.SetGameAsync(obj.Name).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _log.Warn(ex);
+                }
+            }, CommandFlags.FireAndForget);
+
+            sub.Subscribe(Client.CurrentUser.Id + "_status.stream_set", async (ch, streamData) =>
+            {
+                try
+                {
+                    var obj = new { Name = "", Url = "" };
+                    obj = JsonConvert.DeserializeAnonymousType(streamData, obj);
+                    await Client.SetGameAsync(obj.Name, obj.Url, StreamType.Twitch).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _log.Warn(ex);
+                }
+            }, CommandFlags.FireAndForget);
+        }
+
+        public Task SetGameAsync(string game)
+        {
+            var obj = new { Name = game };
+            var sub = Services.GetService<IDataCache>().Redis.GetSubscriber();
+            return sub.PublishAsync(Client.CurrentUser.Id + "_status.game_set", JsonConvert.SerializeObject(obj));
+        }
+
+        public Task SetStreamAsync(string name, string url)
+        {
+            var obj = new { Name = name, Url = url };
+            var sub = Services.GetService<IDataCache>().Redis.GetSubscriber();
+            return sub.PublishAsync(Client.CurrentUser.Id + "_status.game_set", JsonConvert.SerializeObject(obj));
         }
     }
 }

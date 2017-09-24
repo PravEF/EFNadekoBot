@@ -24,14 +24,40 @@ namespace NadekoBot.Services.Database.Repositories.Impl
             return func(_set).FirstOrDefault(x => x.Owner.UserId == userId);
         }
 
+        public ClubInfo GetByOwnerOrAdmin(ulong userId)
+        {
+            return _set
+                .Include(x => x.Bans)
+                    .ThenInclude(x => x.User)
+                .Include(x => x.Applicants)
+                    .ThenInclude(x => x.User)
+                .Include(x => x.Owner)
+                .Include(x => x.Users)
+                .FirstOrDefault(x => x.Owner.UserId == userId) ??
+            _context.Set<DiscordUser>()
+                .Include(x => x.Club)
+                    .ThenInclude(x => x.Users)
+                .Include(x => x.Club)
+                    .ThenInclude(x => x.Bans)
+                        .ThenInclude(x => x.User)
+                .Include(x => x.Club)
+                    .ThenInclude(x => x.Applicants)
+                        .ThenInclude(x => x.User)
+                .Include(x => x.Club)
+                .ThenInclude(x => x.Owner)
+                .FirstOrDefault(x => x.UserId == userId && x.IsClubAdmin)
+                ?.Club;
+        }
+
         public ClubInfo GetByName(string name, int discrim, Func<DbSet<ClubInfo>, IQueryable<ClubInfo>> func = null)
         {
             if (func == null)
                 return _set
+                    .Where(x => x.Name == name && x.Discrim == discrim)
+                    .Include(x => x.Users)
                     .Include(x => x.Bans)
                     .Include(x => x.Applicants)
-                    .Include(x => x.Users)
-                    .FirstOrDefault(x => x.Name.ToLowerInvariant() == name && x.Discrim == discrim);
+                    .FirstOrDefault();
 
             return func(_set).FirstOrDefault(x => x.Name == name && x.Discrim == discrim);
         }
@@ -48,7 +74,8 @@ namespace NadekoBot.Services.Database.Repositories.Impl
         public ClubInfo GetByMember(ulong userId, Func<DbSet<ClubInfo>, IQueryable<ClubInfo>> func = null)
         {
             if (func == null)
-                return _set.Include(x => x.Users)
+                return _set
+                    .Include(x => x.Users)
                     .Include(x => x.Bans)
                     .Include(x => x.Applicants)
                     .FirstOrDefault(x => x.Users.Any(y => y.UserId == userId));

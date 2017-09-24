@@ -76,11 +76,13 @@ namespace NadekoBot.Modules.Searches.Common
                     if (images.Length == 0)
                         return null;
                     var toReturn = images[_rng.Next(images.Length)];
+#if !GLOBAL_NADEKO
                     foreach (var dledImg in images)
                     {
                         if(dledImg != toReturn)
                             _cache.Add(dledImg);
                     }
+#endif
                     return toReturn;
                 }                    
             }
@@ -97,7 +99,6 @@ namespace NadekoBot.Modules.Searches.Common
 
         public async Task<ImageCacherObject[]> DownloadImages(string tag, bool isExplicit, DapiSearchType type)
         {
-            _log.Info($"Loading extra images from {type}");
             tag = tag?.Replace(" ", "_").ToLowerInvariant();
             if (isExplicit)
                 tag = "rating%3Aexplicit+" + tag;
