@@ -13,7 +13,7 @@ namespace NadekoBot.Services.Impl
         public RedisCache(ulong botId)
         {
             _botid = botId;
-            Redis = ConnectionMultiplexer.Connect("127.0.0.1");
+            Redis = ConnectionMultiplexer.Connect("127.0.0.1,abortConnect=false");
             Redis.PreserveAsyncOrder = false;
             _db = Redis.GetDatabase();
         }
