@@ -295,7 +295,7 @@ namespace NadekoBot.Modules.Administration
                 string list;
                 if (ps.Any())
                 {
-                    list = string.Join("\n", ps.Select(x => $"{x.Count} -> {x.Punishment}"));
+                    list = string.Join("\n", ps.Select(x => (x.Punishment == PunishmentAction.Mute) ? $"{x.Count} -> {x.Punishment}, {x.Time} minutes" : $"{x.Count} -> {x.Punishment}"));
                 }
                 else
                 {
